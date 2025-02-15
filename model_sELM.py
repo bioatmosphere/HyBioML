@@ -69,9 +69,9 @@ class MyModel(object):
         self.parms['frootpar_a'] = numpy.zeros([self.npfts]) + 0.3#0.3
         self.parms['frootpar_m'] = numpy.zeros([self.npfts]) + 0.2#0.2
         # TAM longevity
-        self.parms['frootlong_t'] = numpy.zeros([self.npfts]) + 2.25
-        self.parms['frootlong_a'] = numpy.zeros([self.npfts]) + 1.35
-        self.parms['frootlong_m'] = numpy.zeros([self.npfts]) + 0.90
+        self.parms['frootlong_t'] = numpy.zeros([self.npfts]) + 1.5#2.25
+        self.parms['frootlong_a'] = numpy.zeros([self.npfts]) + 1.5#1.35
+        self.parms['frootlong_m'] = numpy.zeros([self.npfts]) + 1.5#0.90
         # TAM chemistry
         self.parms['fr_flab_t'] = numpy.zeros([self.npfts]) + 0.25
         self.parms['fr_flab_a'] = numpy.zeros([self.npfts]) + 0.25
@@ -83,7 +83,7 @@ class MyModel(object):
         self.parms['fr_fcel_a'] = numpy.zeros([self.npfts]) + 0.50
         self.parms['fr_fcel_m'] = numpy.zeros([self.npfts]) + 0.50
         # difference btw fine-root system GDD and leaf GDD
-        self.parms['gdd_crit_gap']        = numpy.zeros([self.npfts]) + 400.
+        self.parms['gdd_crit_gap']        = numpy.zeros([self.npfts]) + 0
         self.parms['mort_depth_efolding'] = numpy.zeros([self.npfts]) + 0.3743
         
         #set parameter ranges for UQ activities
@@ -93,11 +93,11 @@ class MyModel(object):
               self.pmin[p] = numpy.multiply(self.parms[p][:],0.0)+36000.
               self.pmax[p] = numpy.multiply(self.parms[p][:],0.0)+43000.
             elif (p == 'gdd_crit'):
-              self.pmin[p] = numpy.multiply(self.parms[p][:],0.0)+100.
-              self.pmax[p] = numpy.multiply(self.parms[p][:],0.0)+700.
+              self.pmin[p] = numpy.multiply(self.parms[p][:],0.0)+150
+              self.pmax[p] = numpy.multiply(self.parms[p][:],0.0)+750
             elif (p == 'gdd_crit_gap'):
-              self.pmin[p] = numpy.multiply(self.parms[p][:],0.0)+200
-              self.pmax[p] = numpy.multiply(self.parms[p][:],0.0)+600
+              self.pmin[p] = numpy.multiply(self.parms[p][:],0.0)-100
+              self.pmax[p] = numpy.multiply(self.parms[p][:],0.0)+200
             elif (p == 'fpg'):
               self.pmin[p] = numpy.multiply(self.parms[p][:],0.0)+0.70
               self.pmax[p] = numpy.multiply(self.parms[p][:],0.0)+0.95
@@ -116,6 +116,27 @@ class MyModel(object):
             elif (p == 'frootlong_m'):
               self.pmin[p] = numpy.multiply(self.parms[p][:],0.0)+0.13
               self.pmax[p] = numpy.multiply(self.parms[p][:],0.0)+1.
+            elif (p == 'frootcn_t'):
+              self.pmin[p] = numpy.multiply(self.parms[p][:],0.0)+20
+              self.pmax[p] = numpy.multiply(self.parms[p][:],0.0)+184
+            elif (p == 'frootcn_a'):
+              self.pmin[p] = numpy.multiply(self.parms[p][:],0.0)+11
+              self.pmax[p] = numpy.multiply(self.parms[p][:],0.0)+119
+            elif (p == 'frootcn_m'):
+              self.pmin[p] = numpy.multiply(self.parms[p][:],0.0)+7
+              self.pmax[p] = numpy.multiply(self.parms[p][:],0.0)+25
+            elif (p == 'frootpar_t'):
+              self.pmin[p] = numpy.multiply(self.parms[p][:],0.0)+0.05
+              self.pmax[p] = numpy.multiply(self.parms[p][:],0.0)+0.95
+            elif (p == 'frootpar_a'):
+              self.pmin[p] = numpy.multiply(self.parms[p][:],0.0)+0.05
+              self.pmax[p] = numpy.multiply(self.parms[p][:],0.0)+0.95
+            elif (p == 'frootpar_m'):
+              self.pmin[p] = numpy.multiply(self.parms[p][:],0.0)+0.05
+              self.pmax[p] = numpy.multiply(self.parms[p][:],0.0)+0.95
+            elif (p == 'fcur'):
+              self.pmin[p] = numpy.multiply(self.parms[p][:],0.0)+0.25
+              self.pmax[p] = numpy.multiply(self.parms[p][:],0.0)+0.75
             elif (not 'season_decid' in p):
               self.pmin[p] = numpy.multiply(self.parms[p],0.50)
               self.pmax[p] = numpy.multiply(self.parms[p],1.50)
@@ -481,27 +502,27 @@ class MyModel(object):
                 # fine root litter decoupled from leaf shedding
               #Evergreen phenology / leaf & fine-root mortality                            
               else:
-                # gdd_last = gdd[p]
-                # gdd_base = 0.0
-                # gdd[p] = (doy[v] > 1) * (gdd[p] + max(0.5*(tmax[v]+tmin[v])-gdd_base, 0.0))
-                # # storage to leaf on
-                # if (gdd[p] >= parms['gdd_crit'][p] and gdd_last < parms['gdd_crit'][p]):
-                #   leafon[p] = parms['ndays_on'][0]
-                #   leafc_trans_tot[p]  = leafc_stor[p,v] * parms['fstor2tran'][0]
-                # if (leafon[p] > 0):
-                #   leafc_trans[p]  = leafc_trans_tot[p] / parms['ndays_on'][0]
-                #   leafon[p] = leafon[p] - 1
-                # else:
-                #   leafc_trans[p]  = 0.0
+                gdd_last = gdd[p]
+                gdd_base = 0.0
+                gdd[p] = (doy[v] > 1) * (gdd[p] + max(0.5*(tmax[v]+tmin[v])-gdd_base, 0.0))
+                # storage to leaf on
+                if (gdd[p] >= parms['gdd_crit'][p] and gdd_last < parms['gdd_crit'][p]):
+                  leafon[p] = parms['ndays_on'][0]
+                  leafc_trans_tot[p]  = leafc_stor[p,v] * parms['fstor2tran'][0]
+                if (leafon[p] > 0):
+                  leafc_trans[p]  = leafc_trans_tot[p] / parms['ndays_on'][0]
+                  leafon[p] = leafon[p] - 1
+                else:
+                  leafc_trans[p]  = 0.0
                 # storage to fine-roots on
-                # if (gdd[p] >= parms['gdd_crit'][p]+parms['gdd_crit_gap'][p] and gdd_last < parms['gdd_crit'][p]+parms['gdd_crit_gap'][p]):
-                #   frooton[p] = parms['ndays_on'][0]
-                #   frootc_trans_tot[p] = frootc_stor[p,v]*parms['fstor2tran'][0]
-                # if (frooton[p] > 0):
-                #   frootc_trans[p] = frootc_trans_tot[p] / parms['ndays_on'][0]
-                #   frooton[p] = frooton[p] - 1
-                # else:
-                #   frootc_trans[p] = 0.0
+                if (gdd[p] >= parms['gdd_crit'][p]+parms['gdd_crit_gap'][p] and gdd_last < parms['gdd_crit'][p]+parms['gdd_crit_gap'][p]):
+                  frooton[p] = parms['ndays_on'][0]
+                  frootc_trans_tot[p] = frootc_stor[p,v]*parms['fstor2tran'][0]
+                if (frooton[p] > 0):
+                  frootc_trans[p] = frootc_trans_tot[p] / parms['ndays_on'][0]
+                  frooton[p] = frooton[p] - 1
+                else:
+                  frootc_trans[p] = 0.0
                 # mortality            
                 retransn[p]     = leafc[p,v]  * 1.0 / (parms['leaf_long'][p]*365. ) * (1.0 / parms['leafcn'][p] - 1.0 / parms['lflitcn'][p])
                 leafc_litter[p] = parms['r_mort'][0] * leafc[p,v]/365.0  + leafc[p,v]  * 1.0 / (parms['leaf_long'][p]*365. )
