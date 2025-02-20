@@ -13,7 +13,7 @@ import sys
 class MyModel(object):
 
     def __init__(self,site='',nfroot_orders=3):
-        self.name = 'sELM'
+        self.name = 'hybioml'
         self.site = site
         self.nsoil_layers  = 10
         self.nfroot_orders = nfroot_orders
@@ -34,7 +34,7 @@ class MyModel(object):
         self.pdefault = {}
         self.pmin     = {}
         self.pmax     = {}
-        #define the subset of elm parameters that apply to selm
+        #define the subset of elm parameters to be used in the model
         #...added fcur
         elm_parmlist = ['crit_dayl','ndays_on','ndays_off', \
                 'flnr','slatop','leafcn','lflitcn','livewdcn','frootcn', \
@@ -162,14 +162,16 @@ class MyModel(object):
         nsamples=20000
         self.nparms_nn = 14  #15
         ptrain_orig  = (numpy.loadtxt('./GPP_model_NN/ptrain_daily.dat'))[0:nsamples,:]
-        self.pmin_nn = numpy.zeros([self.nparms_nn], numpy.float)
-        self.pmax_nn = numpy.zeros([self.nparms_nn], numpy.float)
+        self.pmin_nn = numpy.zeros([self.nparms_nn], numpy.float64)
+        self.pmax_nn = numpy.zeros([self.nparms_nn], numpy.float64)
         for i in range(0,self.nparms_nn):
           self.pmin_nn[i] = min(ptrain_orig[:,i])
           self.pmax_nn[i] = max(ptrain_orig[:,i])
 
-    def selm_instance(self, parms, use_nn=False, seasonal_rootalloc=False,spinup_cycles=0, pftwt=[1.0,0,0]):
-
+    def hybioml_instance(self, parms, use_nn=False, seasonal_rootalloc=False,spinup_cycles=0, pftwt=[1.0,0,0]):
+        """
+        Run the sELM model for a single set of parameters
+        """
         calc_nlimitation = True
         npfts         = self.npfts
         nfroot_orders = self.nfroot_orders
@@ -179,11 +181,11 @@ class MyModel(object):
         #####################################
         #
         #froot_partition_0 = [1/nfroot_orders] * nfroot_orders
-        #frootcn = numpy.zeros([npfts,nfroot_orders],numpy.float)
-        #fr_flab = numpy.zeros([npfts,nfroot_orders],numpy.float)
-        #fr_flig = numpy.zeros([npfts,nfroot_orders],numpy.float)
+        #frootcn = numpy.zeros([npfts,nfroot_orders],numpy.float64)
+        #fr_flab = numpy.zeros([npfts,nfroot_orders],numpy.float64)
+        #fr_flig = numpy.zeros([npfts,nfroot_orders],numpy.float64)
         # evergreen fine root longevity
-        #froot_long = numpy.zeros([npfts,nfroot_orders],numpy.float)
+        #froot_long = numpy.zeros([npfts,nfroot_orders],numpy.float64)
 
         if nfroot_orders == 1:
            #froot_partition = [1/nfroot_orders] * nfroot_orders
@@ -265,20 +267,20 @@ class MyModel(object):
         #vertically resolved variables (local)
         # ...root_frac can be made order-specific, BUT assumed to be the same
         # ...a depth correction coefficient for fine-root longevity added
-        root_frac    = numpy.zeros([npfts,self.nsoil_layers], numpy.float)
-        surf_prof    = numpy.zeros([self.nsoil_layers], numpy.float)
-        depth_scalar = numpy.zeros([self.nsoil_layers], numpy.float)+1.0
-        long_scalar  = numpy.zeros([npfts,self.nsoil_layers], numpy.float)+1.0
+        root_frac    = numpy.zeros([npfts,self.nsoil_layers], numpy.float64)
+        surf_prof    = numpy.zeros([self.nsoil_layers], numpy.float64)
+        depth_scalar = numpy.zeros([self.nsoil_layers], numpy.float64)+1.0
+        long_scalar  = numpy.zeros([npfts,self.nsoil_layers], numpy.float64)+1.0
         #set soil layers
         decomp_depth_efolding = 0.3743
         if (self.nsoil_layers == 1):
           surf_prof[0]   = 1.0
           root_frac[:,0] = 1.0
         else:
-          soil_nodes = numpy.zeros([self.nsoil_layers], numpy.float)
-          soil_dz    = numpy.zeros([self.nsoil_layers], numpy.float)
-          soil_hi    = numpy.zeros([self.nsoil_layers], numpy.float)
-          soil_depth = numpy.zeros([self.nsoil_layers], numpy.float)
+          soil_nodes = numpy.zeros([self.nsoil_layers], numpy.float64)
+          soil_dz    = numpy.zeros([self.nsoil_layers], numpy.float64)
+          soil_hi    = numpy.zeros([self.nsoil_layers], numpy.float64)
+          soil_depth = numpy.zeros([self.nsoil_layers], numpy.float64)
           
           for i in range(0,self.nsoil_layers):
             soil_nodes[i] = 0.025*(numpy.exp(0.5*(i+0.5))-1)
@@ -339,7 +341,7 @@ class MyModel(object):
         dayl = self.forcings['dayl']
         btran= self.forcings['btran']
         #Coefficents for ACM (GPP submodel)
-        a=numpy.zeros([npfts,10], numpy.float)
+        a=numpy.zeros([npfts,10], numpy.float64)
         for p in range(0,npfts):
           a[p,:] = [parms['nue'][p], 0.0156935, 4.22273, 208.868, 0.0453194, 0.37836, 7.19298, 0.011136, 2.1001, 0.789798]
 
@@ -350,7 +352,7 @@ class MyModel(object):
         rf_ctc = [parms['rf_l1s1'][0],parms['rf_l2s2'][0],parms['rf_l3s3'][0] , \
                   parms['rf_s1s2'][0],parms['rf_s2s3'][0],parms['rf_s3s4'][0], 1.0, 0.0]
         #transfer matrix for CTC model
-        tr_ctc = numpy.zeros([8,8],numpy.float)
+        tr_ctc = numpy.zeros([8,8],numpy.float64)
         tr_ctc[0,3] = 1.0 - parms['rf_l1s1'][0]
         tr_ctc[1,4] = 1.0 - parms['rf_l2s2'][0]
         tr_ctc[2,5] = 1.0 - parms['rf_l3s3'][0]
@@ -361,50 +363,50 @@ class MyModel(object):
         tr_ctc[7,2] = 1.0 - parms['cwd_flig'][0]
 
         #Initialize local variables
-        gdd                = numpy.zeros([npfts], numpy.float)+0.0
-        #gdd_froot=numpy.zeros([npfts], numpy.float)+0.0
-        leafon             = numpy.zeros([npfts], numpy.float)+0.0
-        leafoff            = numpy.zeros([npfts], numpy.float)+0.0
-        frooton            = numpy.zeros([npfts], numpy.float)+0.0
-        leafc_trans        = numpy.zeros([npfts], numpy.float)+0.0
-        frootc_trans       = numpy.zeros([npfts], numpy.float)+0.0
-        leafc_trans_tot    = numpy.zeros([npfts], numpy.float)+0.0
-        frootc_trans_tot   = numpy.zeros([npfts], numpy.float)+0.0
-        leafc_litter       = numpy.zeros([npfts], numpy.float)+0.0
+        gdd                = numpy.zeros([npfts], numpy.float64)+0.0
+        #gdd_froot=numpy.zeros([npfts], numpy.float64)+0.0
+        leafon             = numpy.zeros([npfts], numpy.float64)+0.0
+        leafoff            = numpy.zeros([npfts], numpy.float64)+0.0
+        frooton            = numpy.zeros([npfts], numpy.float64)+0.0
+        leafc_trans        = numpy.zeros([npfts], numpy.float64)+0.0
+        frootc_trans       = numpy.zeros([npfts], numpy.float64)+0.0
+        leafc_trans_tot    = numpy.zeros([npfts], numpy.float64)+0.0
+        frootc_trans_tot   = numpy.zeros([npfts], numpy.float64)+0.0
+        leafc_litter       = numpy.zeros([npfts], numpy.float64)+0.0
         # OLD
-        #frootc_litter = numpy.zeros([npfts], numpy.float)+0.0
+        #frootc_litter = numpy.zeros([npfts], numpy.float64)+0.0
         # NEW
-        #frootc_litter = numpy.zeros([npfts,nfroot_orders], numpy.float)+0.0
-        frootc_litter_ovr  = numpy.zeros([npfts,nfroot_orders,self.nsoil_layers], numpy.float)+0.0
-        leafc_litter_tot   = numpy.zeros([npfts], numpy.float)+0.0
+        #frootc_litter = numpy.zeros([npfts,nfroot_orders], numpy.float64)+0.0
+        frootc_litter_ovr  = numpy.zeros([npfts,nfroot_orders,self.nsoil_layers], numpy.float64)+0.0
+        leafc_litter_tot   = numpy.zeros([npfts], numpy.float64)+0.0
         # OLD
-        #frootc_litter_tot = numpy.zeros([npfts], numpy.float)+0.0
+        #frootc_litter_tot = numpy.zeros([npfts], numpy.float64)+0.0
         # NEW
-        #frootc_litter_tot = numpy.zeros([npfts,nfroot_orders], numpy.float)+0.0
-        leafn_litter        = numpy.zeros([npfts], numpy.float)+0.0
-        livestemc_turnover  = numpy.zeros([npfts], numpy.float)+0.0
-        livecrootc_turnover = numpy.zeros([npfts], numpy.float)+0.0
-        annsum_npp          = numpy.zeros([npfts], numpy.float)+0.0
-        annsum_npp_temp     = numpy.zeros([npfts], numpy.float)+0.0
-        retransn            = numpy.zeros([npfts], numpy.float)+0.0
-        annsum_retransn     = numpy.zeros([npfts], numpy.float)+0.0
-        annsum_retransn_temp= numpy.zeros([npfts], numpy.float)+0.0
-        annsum_gpp          = numpy.zeros([npfts], numpy.float)+1000.0
-        annsum_gpp_temp     = numpy.zeros([npfts], numpy.float)+1000.0
-        availc              = numpy.zeros([npfts], numpy.float)+0.0
-        cstor_alloc         = numpy.zeros([npfts], numpy.float)+0.0
-        xsmr                = numpy.zeros([npfts], numpy.float)+0.0
-        callom              = numpy.zeros([npfts], numpy.float)+0.0
-        nallom              = numpy.zeros([npfts], numpy.float)+0.0
-        leafcstor_alloc     = numpy.zeros([npfts], numpy.float)+0.0
-        frootcstor_alloc    = numpy.zeros([npfts], numpy.float)+0.0
-        livecrootc_alloc    = numpy.zeros([npfts], numpy.float)+0.0
-        deadcrootc_alloc    = numpy.zeros([npfts], numpy.float)+0.0
-        plant_ndemand       = numpy.zeros([npfts], numpy.float)+0.0
-        plant_nalloc        = numpy.zeros([npfts], numpy.float)+0.0
-        cstor_turnover      = numpy.zeros([npfts], numpy.float)+0.0
+        #frootc_litter_tot = numpy.zeros([npfts,nfroot_orders], numpy.float64)+0.0
+        leafn_litter        = numpy.zeros([npfts], numpy.float64)+0.0
+        livestemc_turnover  = numpy.zeros([npfts], numpy.float64)+0.0
+        livecrootc_turnover = numpy.zeros([npfts], numpy.float64)+0.0
+        annsum_npp          = numpy.zeros([npfts], numpy.float64)+0.0
+        annsum_npp_temp     = numpy.zeros([npfts], numpy.float64)+0.0
+        retransn            = numpy.zeros([npfts], numpy.float64)+0.0
+        annsum_retransn     = numpy.zeros([npfts], numpy.float64)+0.0
+        annsum_retransn_temp= numpy.zeros([npfts], numpy.float64)+0.0
+        annsum_gpp          = numpy.zeros([npfts], numpy.float64)+1000.0
+        annsum_gpp_temp     = numpy.zeros([npfts], numpy.float64)+1000.0
+        availc              = numpy.zeros([npfts], numpy.float64)+0.0
+        cstor_alloc         = numpy.zeros([npfts], numpy.float64)+0.0
+        xsmr                = numpy.zeros([npfts], numpy.float64)+0.0
+        callom              = numpy.zeros([npfts], numpy.float64)+0.0
+        nallom              = numpy.zeros([npfts], numpy.float64)+0.0
+        leafcstor_alloc     = numpy.zeros([npfts], numpy.float64)+0.0
+        frootcstor_alloc    = numpy.zeros([npfts], numpy.float64)+0.0
+        livecrootc_alloc    = numpy.zeros([npfts], numpy.float64)+0.0
+        deadcrootc_alloc    = numpy.zeros([npfts], numpy.float64)+0.0
+        plant_ndemand       = numpy.zeros([npfts], numpy.float64)+0.0
+        plant_nalloc        = numpy.zeros([npfts], numpy.float64)+0.0
+        cstor_turnover      = numpy.zeros([npfts], numpy.float64)+0.0
         #
-        met_thistimestep_norm=numpy.zeros([1,self.nparms_nn], numpy.float)
+        met_thistimestep_norm=numpy.zeros([1,self.nparms_nn], numpy.float64)
         
         #Run the model
         for s in range(0,spinup_cycles+1):
@@ -677,10 +679,10 @@ class MyModel(object):
             #end of 1st loop over pfts
 
             #Calculate resistance term and actual uptake f_om npool
-            ctc_cn = numpy.zeros([8,self.nsoil_layers], numpy.float)+10.0   #default SOM pools to 10
+            ctc_cn = numpy.zeros([8,self.nsoil_layers], numpy.float64)+10.0   #default SOM pools to 10
             if (calc_nlimitation):
               #Calculate potential immobilization (assume from litter-> SOM transitions only)
-              potential_immob_vr = numpy.zeros([self.nsoil_layers], numpy.float)
+              potential_immob_vr = numpy.zeros([self.nsoil_layers], numpy.float64)
               trate = parms['q10_hr']**((0.5*(tmax[v]+tmin[v])-10)/10.0)
               for p in range(0,3):
                 for nl in range(0,self.nsoil_layers):
@@ -741,7 +743,7 @@ class MyModel(object):
 
             ###################################
             # new profile: distribution profile & litter input profile
-            froot_dist = numpy.zeros([npfts,self.nsoil_layers],numpy.float)
+            froot_dist = numpy.zeros([npfts,self.nsoil_layers],numpy.float64)
             for p in range(0,npfts):
               # if (sum(sminn_vr[:,v]) > 0):
               #   froot_dist[p,:] = root_frac[p] * sminn_vr[:,v]/sum(sminn_vr[:,v])
@@ -794,18 +796,18 @@ class MyModel(object):
               mort_factor = 10.0
             else:
               mort_factor = 1.0
-            leafc_litter_vr      = numpy.zeros([npfts,self.nsoil_layers],numpy.float)
+            leafc_litter_vr      = numpy.zeros([npfts,self.nsoil_layers],numpy.float64)
             # OLD
-            #frootc_litter_vr    = numpy.zeros([self.nsoil_layers],numpy.float)
+            #frootc_litter_vr    = numpy.zeros([self.nsoil_layers],numpy.float64)
             # NEW
-            frootc_litter_vr     = numpy.zeros([npfts,nfroot_orders,self.nsoil_layers],numpy.float)
-            leafn_litter_vr      = numpy.zeros([npfts,self.nsoil_layers],numpy.float)
-            livestemc_litter_vr  = numpy.zeros([npfts,self.nsoil_layers],numpy.float)
-            livecrootc_litter_vr = numpy.zeros([npfts,self.nsoil_layers],numpy.float)
-            deadstemc_litter_vr  = numpy.zeros([npfts,self.nsoil_layers],numpy.float)
-            deadcrootc_litter_vr = numpy.zeros([npfts,self.nsoil_layers],numpy.float)
-            cstor_litter_vr      = numpy.zeros([npfts,self.nsoil_layers],numpy.float)
-            nstor_litter_vr      = numpy.zeros([npfts,self.nsoil_layers],numpy.float)
+            frootc_litter_vr     = numpy.zeros([npfts,nfroot_orders,self.nsoil_layers],numpy.float64)
+            leafn_litter_vr      = numpy.zeros([npfts,self.nsoil_layers],numpy.float64)
+            livestemc_litter_vr  = numpy.zeros([npfts,self.nsoil_layers],numpy.float64)
+            livecrootc_litter_vr = numpy.zeros([npfts,self.nsoil_layers],numpy.float64)
+            deadstemc_litter_vr  = numpy.zeros([npfts,self.nsoil_layers],numpy.float64)
+            deadcrootc_litter_vr = numpy.zeros([npfts,self.nsoil_layers],numpy.float64)
+            cstor_litter_vr      = numpy.zeros([npfts,self.nsoil_layers],numpy.float64)
+            nstor_litter_vr      = numpy.zeros([npfts,self.nsoil_layers],numpy.float64)
             for nl in range(0,self.nsoil_layers):
               for p in range(0,npfts):
                 leafc_litter_vr[p,nl]  = pftwt[p] * leafc_litter[p]  * surf_prof[nl]
@@ -897,9 +899,9 @@ class MyModel(object):
             # BWANG: Changes arising from CTAM structure
             # ... frootc_litter_vr being pft-, order-, & layer-specific
             # .....need to sum over PFTs and orders to derive layer-based total inputs
-            ctc_input    = numpy.zeros([16,self.nsoil_layers],numpy.float)  #inputs to pool
-            ctc_output   = numpy.zeros([16,self.nsoil_layers],numpy.float)  #Outputs from pool
-            ctc_resp     = numpy.zeros([8, self.nsoil_layers],numpy.float)  #Respiration from pool
+            ctc_input    = numpy.zeros([16,self.nsoil_layers],numpy.float64)  #inputs to pool
+            ctc_output   = numpy.zeros([16,self.nsoil_layers],numpy.float64)  #Outputs from pool
+            ctc_resp     = numpy.zeros([8, self.nsoil_layers],numpy.float64)  #Respiration from pool
             #Litter inputs to the system
             for nl in range(0,self.nsoil_layers):
               #Carbon
@@ -919,7 +921,7 @@ class MyModel(object):
                                 sum((deadcrootc_litter_vr[:,nl] + deadstemc_litter_vr[:,nl]) / numpy.maximum(parms['deadwdcn'],[10.]*npfts))
             
             #########################
-            ctc_to_sminn = numpy.zeros([self.nsoil_layers], numpy.float)
+            ctc_to_sminn = numpy.zeros([self.nsoil_layers], numpy.float64)
             if (s < spinup_cycles):
               spinup_factors = [1.0, 1.0, 1.0, 1.0, 1.0, 5.0, 30.0, 3.0]
             else:
@@ -1013,16 +1015,18 @@ class MyModel(object):
                 #sminn_vr[nl,v+1] = max(sminn_vr[nl,v]*(1-bdnr) + nfix[v]*root_frac[0,nl] + ndep[v]*surf_prof[nl] - \
                 #                     fpi_vr[nl,v]*plant_ndemand_vr[nl] + ctc_to_sminn[nl], 0.0)
             
-
-    def run_selm(self, spinup_cycles=0, lat_bounds=[-999,-999], lon_bounds=[-999,-999], \
+    def run_hybioml(self, spinup_cycles=0, lat_bounds=[-999,-999], lon_bounds=[-999,-999], \
                      do_monthly_output=False, do_output_forcings=False, pft=-1,          \
                      prefix='model', seasonal_rootalloc=False, use_nn=False, ensemble=False, \
                      myoutvars=[], use_MPI=False):
-
+        """ 
+        Run the hybioml model for a given site or region
+        
+        """
         ens_torun  = []
         indx_torun = []
         indy_torun = []
-        pftwt_torun= numpy.zeros([self.npfts, 10000000], numpy.float)
+        pftwt_torun= numpy.zeros([self.npfts, 10000000], numpy.float64)
         n_active   = 0
 
         if (self.site == 'none'):
@@ -1126,20 +1130,20 @@ class MyModel(object):
           for v in myoutvars:
             if (v in self.forcvars):
               do_output_forcings = True
-              model_output[v] = numpy.zeros([self.nt,self.ny,self.nx], numpy.float)
+              model_output[v] = numpy.zeros([self.nt,self.ny,self.nx], numpy.float64)
             elif (v == 'ctcpools_vr'):
-              model_output[v] = numpy.zeros([self.ne,16,self.nsoil_layers,self.nt,self.ny,self.nx], numpy.float)
+              model_output[v] = numpy.zeros([self.ne,16,self.nsoil_layers,self.nt,self.ny,self.nx], numpy.float64)
             elif (v == 'frootctam_pft'):
-              model_output[v] = numpy.zeros([self.ne,self.npfts,self.nfroot_orders,self.nt,self.ny,self.nx], numpy.float)
+              model_output[v] = numpy.zeros([self.ne,self.npfts,self.nfroot_orders,self.nt,self.ny,self.nx], numpy.float64)
             elif (v == 'frootctam_pft_vr'):
-              model_output[v] = numpy.zeros([self.ne,self.npfts,self.nfroot_orders,self.nsoil_layers,self.nt,self.ny,self.nx], numpy.float)
+              model_output[v] = numpy.zeros([self.ne,self.npfts,self.nfroot_orders,self.nsoil_layers,self.nt,self.ny,self.nx], numpy.float64)
             elif ('_vr' in v):
-              model_output[v] = numpy.zeros([self.ne,self.nsoil_layers,self.nt,self.ny,self.nx], numpy.float)
+              model_output[v] = numpy.zeros([self.ne,self.nsoil_layers,self.nt,self.ny,self.nx], numpy.float64)
             elif ('_pft' in v):
-              model_output[v] = numpy.zeros([self.ne,self.npfts,self.nt,self.ny,self.nx], numpy.float)
+              model_output[v] = numpy.zeros([self.ne,self.npfts,self.nt,self.ny,self.nx], numpy.float64)
             else:
-              model_output[v] = numpy.zeros([self.ne,self.nt,self.ny,self.nx], numpy.float) 
-          self.pftfrac = numpy.zeros([self.ny,self.nx,self.npfts], numpy.float)
+              model_output[v] = numpy.zeros([self.ne,self.nt,self.ny,self.nx], numpy.float64) 
+          self.pftfrac = numpy.zeros([self.ny,self.nx,self.npfts], numpy.float64)
 
           if (self.site == 'none'):
             self.load_forcings(lon=lons_torun[0], lat=lats_torun[0])
@@ -1327,17 +1331,17 @@ class MyModel(object):
               thisoutput_ens = {}
               for var in self.outvars:
                 if (var == 'ctcpools_vr'):
-                  self.output[var] = numpy.zeros([16,self.nsoil_layers,self.nobs+1], numpy.float)
+                  self.output[var] = numpy.zeros([16,self.nsoil_layers,self.nobs+1], numpy.float64)
                 elif (var == 'frootctam_pft'):
-                  self.output[var] = numpy.zeros([self.npfts,self.nfroot_orders,self.nobs+1], numpy.float)
+                  self.output[var] = numpy.zeros([self.npfts,self.nfroot_orders,self.nobs+1], numpy.float64)
                 elif (var == 'frootctam_pft_vr'):
-                  self.output[var] = numpy.zeros([self.npfts,self.nfroot_orders,self.nsoil_layers,self.nobs+1], numpy.float)  
+                  self.output[var] = numpy.zeros([self.npfts,self.nfroot_orders,self.nsoil_layers,self.nobs+1], numpy.float64)  
                 elif ('_vr' in var):
-                  self.output[var] = numpy.zeros([self.nsoil_layers,self.nobs+1], numpy.float)
+                  self.output[var] = numpy.zeros([self.nsoil_layers,self.nobs+1], numpy.float64)
                 elif ('_pft' in var):
-                  self.output[var] = numpy.zeros([self.npfts,self.nobs+1], numpy.float)
+                  self.output[var] = numpy.zeros([self.npfts,self.nobs+1], numpy.float64)
                 else:
-                  self.output[var] = numpy.zeros([self.nobs+1], numpy.float)
+                  self.output[var] = numpy.zeros([self.nobs+1], numpy.float64)
               # loop over ensemble members
               if (all_ensembles_onejob):
                  k_max = self.ne
@@ -1383,17 +1387,17 @@ class MyModel(object):
                   # thisoutput --> thisoutput_ens
                   if (k == 0):
                     if (('_vr' in v) and (not 'ctcpools' in v) and (not 'frootctam' in v)):
-                      thisoutput_ens[v] = numpy.zeros([k_max,self.nsoil_layers,max(thisoutput[v].shape)], numpy.float)
+                      thisoutput_ens[v] = numpy.zeros([k_max,self.nsoil_layers,max(thisoutput[v].shape)], numpy.float64)
                     elif ('_pft' in v and (not 'frootctam' in v)):
-                      thisoutput_ens[v] = numpy.zeros([k_max,self.npfts,       max(thisoutput[v].shape)], numpy.float)
+                      thisoutput_ens[v] = numpy.zeros([k_max,self.npfts,       max(thisoutput[v].shape)], numpy.float64)
                     elif (v == 'frootctam_pft'):
-                      thisoutput_ens[v] = numpy.zeros([k_max,self.npfts,self.nfroot_orders,max(thisoutput[v].shape)], numpy.float)
+                      thisoutput_ens[v] = numpy.zeros([k_max,self.npfts,self.nfroot_orders,max(thisoutput[v].shape)], numpy.float64)
                     elif (v == 'frootctam_pft_vr'):
-                      thisoutput_ens[v] = numpy.zeros([k_max,self.npfts,self.nfroot_orders,self.nsoil_layers,max(thisoutput[v].shape)], numpy.float)
+                      thisoutput_ens[v] = numpy.zeros([k_max,self.npfts,self.nfroot_orders,self.nsoil_layers,max(thisoutput[v].shape)], numpy.float64)
                     elif (v == 'ctcpools_vr'):
-                      thisoutput_ens[v] = numpy.zeros([k_max,16,self.nsoil_layers,max(thisoutput[v].shape)], numpy.float)
+                      thisoutput_ens[v] = numpy.zeros([k_max,16,self.nsoil_layers,max(thisoutput[v].shape)], numpy.float64)
                     else:
-                      thisoutput_ens[v] = numpy.zeros([k_max, len(thisoutput[v])], numpy.float)
+                      thisoutput_ens[v] = numpy.zeros([k_max, len(thisoutput[v])], numpy.float64)
                   # fill thisoutput_ens
                   if (('_vr' in v or '_pft' in v) and (not 'ctcpools' in v) and (not 'frootctam' in v)):
                     thisoutput_ens[v][k,:,:] = thisoutput[v]
@@ -1521,7 +1525,7 @@ class MyModel(object):
 
          #output for eden vis system - customize as needed
         #  if (self.ne > 1):
-        #    eden_out = numpy.zeros([self.ne,pnum+1],numpy.float)
+        #    eden_out = numpy.zeros([self.ne,pnum+1],numpy.float64)
         #    for n in range(0,self.ne):
         #      eden_out[n,0:pnum]      = self.parm_ensemble[n,:]
         #      eden_out[n,pnum:pnum+1] = numpy.mean(output['gpp'][n,0,0:60,0,0])*365.
@@ -1529,8 +1533,8 @@ class MyModel(object):
 
     def generate_synthetic_obs(self, parms, err, use_nn=False):
         #generate synthetic observations from model with Gaussian error
-        self.obs = numpy.zeros([self.nobs], numpy.float)
-        self.obs_err = numpy.zeros([self.nobs], numpy.float)+err
+        self.obs = numpy.zeros([self.nobs], numpy.float64)
+        self.obs_err = numpy.zeros([self.nobs], numpy.float64)+err
         self.selm_instance(parms, use_nn=use_nn)
         for v in range(0,self.nobs):
             self.obs[v] = self.output[v]+numpy.random.normal(0,err,1)
@@ -1662,10 +1666,10 @@ class MyModel(object):
         self.forcings['tmin']  = tmin-273.15
         self.forcings['btran'] = btran
         self.forcings['rad']   = fsds*86400/1e6
-        self.forcings['cair']  = numpy.zeros([self.nobs], numpy.float) + 360.0
-        self.forcings['doy']   = (numpy.cumsum(numpy.ones([self.nobs], numpy.float)) - 1) % 365 + 1
-        self.forcings['time']  = self.start_year + (numpy.cumsum(numpy.ones([self.nobs], numpy.float)-1))/365.0
-        self.forcings['dayl']  = numpy.zeros([self.nobs], numpy.float)
+        self.forcings['cair']  = numpy.zeros([self.nobs], numpy.float64) + 360.0
+        self.forcings['doy']   = (numpy.cumsum(numpy.ones([self.nobs], numpy.float64)) - 1) % 365 + 1
+        self.forcings['time']  = self.start_year + (numpy.cumsum(numpy.ones([self.nobs], numpy.float64)-1))/365.0
+        self.forcings['dayl']  = numpy.zeros([self.nobs], numpy.float64)
         for d in range(0,self.nobs):
           #Calculate day length
           dec  = -23.4*numpy.cos((360.*(self.forcings['doy'][d]+10.)/365.)*numpy.pi/180.)*numpy.pi/180.
@@ -1683,23 +1687,24 @@ class MyModel(object):
       self.output = {}
       for var in self.outvars:
         if (var == 'ctcpools_vr'):
-          self.output[var] = numpy.zeros([16,self.nsoil_layers,self.nobs+1], numpy.float)
+          self.output[var] = numpy.zeros([16,self.nsoil_layers,self.nobs+1], numpy.float64)
         elif ('_pft' in var and '_vr' in var):
-          self.output[var] = numpy.zeros([self.npfts,self.nfroot_orders,self.nsoil_layers,self.nobs+1], numpy.float)
+          self.output[var] = numpy.zeros([self.npfts,self.nfroot_orders,self.nsoil_layers,self.nobs+1], numpy.float64)
         elif ('_vr' in var):
-          self.output[var] = numpy.zeros([self.nsoil_layers,self.nobs+1], numpy.float)
+          self.output[var] = numpy.zeros([self.nsoil_layers,self.nobs+1], numpy.float64)
         elif ('_pft' in var and var != 'frootctam_pft'):
-          self.output[var] = numpy.zeros([self.npfts,self.nobs+1], numpy.float)
+          self.output[var] = numpy.zeros([self.npfts,self.nobs+1], numpy.float64)
         elif (var == 'frootctam_pft'):
-          self.output[var] = numpy.zeros([self.npfts,self.nfroot_orders,self.nobs+1], numpy.float)
+          self.output[var] = numpy.zeros([self.npfts,self.nfroot_orders,self.nobs+1], numpy.float64)
         else:
-          self.output[var] = numpy.zeros([self.nobs+1], numpy.float)
+          self.output[var] = numpy.zeros([self.nobs+1], numpy.float64)
 
-    #Load actual observations and uncertainties
     def generate_ensemble(self, n_ensemble, pnames, ppfts, fname='', normalized=False):
       """
       Generate parameters' values for ensemble runs.
-
+      
+      Load actual observations and uncertainties
+      
       Parameters:
         n_ensemble: integer;size of ensemble
         pnames:     list of parameter names participating ensemble runs
